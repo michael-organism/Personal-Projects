@@ -1218,10 +1218,10 @@ class Matrix(Tensor):
             #Formula for an inverse matrix
             return Matrix((1/abs(matrix))%cofactor_matrix)
         elif abs(matrix.shape[1]) > abs(matrix.shape[0]):
-            #left
+            #left inverse
             return Matrix.inverse(Matrix.transpose(matrix) * matrix) * Matrix.transpose(matrix)
         elif abs(matrix.shape[0]) > abs(matrix.shape[1]):
-            #right
+            #right inverse
             return Matrix.transpose(matrix) * Matrix.inverse(matrix * Matrix.transpose(matrix))
 
     def exp(matrix):
@@ -1675,8 +1675,8 @@ be used.""")
                                 break
                         elif user_input == "3":
                             print("""
-The inverse() method returns the inverse of a square matrix if it exists. This method uses the formula for the inverse matrix using the cofactor 
-matrix and determinant.""")
+The inverse() method returns the inverse of a matrix if it exists. This method uses the formula for the inverse of a square matrix using the cofactor 
+matrix and determinant. If the matrix is nonsquare then the psuedo inverse is returned. """)
                             print("\nenter q to quit, or b to go back to the previous menu")
                             user_input = input("> ")
                             while (user_input != "q") and (user_input != "b"):

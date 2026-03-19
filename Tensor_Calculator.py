@@ -590,9 +590,15 @@ class Tensor:
         else:
             return NotImplemented
 
-    def __rmul__(tensor_0:Vector, scalar:int|float|complex):
+    def __rmul__(tensor_0:Tensor, scalar:int|float|complex):
         if isinstance(scalar, int) or isinstance(scalar, float) or isinstance(scalar, complex):
-            tensor_0%scalar
+            return tensor_0%scalar
+        else:
+            return NotImplemented
+
+    def __truediv__(tensor_0:Tensor, scalar:int|float|complex):
+        if isinstance(scalar, int) or isinstance(scalar, float) or isinstance(scalar, complex):
+            return tensor_0%(1/scalar)
         else:
             return NotImplemented
 
@@ -606,6 +612,8 @@ class Tensor:
         :param index_0: index of first tensor to be contracted
         :param index_1: index of second tensor to be contracted
         """
+        print("A:",tensor_0.shape)
+        print("B:",tensor_1.shape)
         if isinstance(tensor_0.tensor, int) or isinstance(tensor_0.tensor, float) or isinstance(tensor_1,complex):
             raise TypeError("Scalars cannot be contracted")
         if tensor_0.shape[index_0] != -1*tensor_1.shape[index_1]:
@@ -1078,11 +1086,12 @@ class Matrix(Tensor):
                 raise TypeError("Cannot multiply these, number of columns in first matrix must equal number of rows in second")
             return Vector(Tensor.contract(tensor_0, tensor_1, 0, 0))
         elif isinstance(tensor_1, Matrix):
+            print(tensor_0.shape)
+            print(tensor_1.shape)
             if -1*tensor_0.shape[0] != tensor_1.shape[1]:
                 raise TypeError("Cannot multiply these, number of columns in first matrix must equal number of rows in second")
-            return Matrix(Tensor.contract(tensor_0, tensor_1, 1, 0))
+            return Matrix(Tensor.contract(tensor_1, tensor_0, 1, 0))
         else:
-            print("fjhsz")
             return NotImplemented
 
     def __rmul__(tensor_0:Matrix, tensor_1:int|float|complex):
@@ -1159,50 +1168,61 @@ class Matrix(Tensor):
         :param matrix: matrix to be transposed
         :return: transposed matrix
         """
-        return Matrix(super().transpose(0,1))
+        output = Matrix(super().transpose(0,1))
+        if output.shape[0] > 0:
+            output.change_index(0)
+        if output.shape[1] < 0:
+            output.change_index(1)
+        return output
 
     def inverse(matrix):
         """
-        Finds the inverse of a square matrix using the adjugate method\n
+        Finds the inverse of a matrix using the adjugate method\n
         May be unreliable with complex numbers because of numerical error due to how python handles complex numbers\n
         returns TypeError if the matrix does not have an inverse
 
         :param matrix: Description
         :return: inverse of matrix
         """
-        #Check the determinant of the matrix
-        if abs(matrix) == 0:
-            raise TypeError("This matrix does not have an inverse")
-        #I would rather redefine the determinant here than to make a new matrix for each minor
-        def determinant(matrix):
-            if len(matrix) == 1 and len(matrix[0]) == 1:
-                if isinstance(matrix[0][0], int) or isinstance(matrix[0][0], float) or isinstance(matrix[0][0], complex):
-                    return matrix[0][0]
-            elif isinstance(matrix, list):
-                det = 0
-                for i in range(len(matrix)):
-                    det += ((-1)**i)*matrix[0][i]*determinant([row[:i] + row[i+1:] for row in matrix[1:]])
-                return det
-
-        #scaffolding for the inverse matrix
-        cofactor_matrix = Matrix(matrix.shape, "zero")
-        #For whatever reason, I cannot clone matrix any other way than this for-loop
-        for element in Tensor.loop_through_all_coordinates(list(matrix.shape)):
-            cofactor_matrix.edit_element(element, matrix.access_element(element))
-        #priming minor
-        minor = [i[:] for i in matrix.tensor]
-        for element in Tensor.loop_through_all_coordinates(list(cofactor_matrix.shape)):
-            #Only way I was able to clone minor without messing up matrix
+        if abs(matrix.shape[0]) == abs(matrix.shape[1]):
+            #Check the determinant of the matrix
+            if abs(matrix) == 0:
+                raise TypeError("This matrix does not have an inverse")
+            #I would rather redefine the determinant here than to make a new matrix for each minor
+            def determinant(matrix):
+                if len(matrix) == 1 and len(matrix[0]) == 1:
+                    if isinstance(matrix[0][0], int) or isinstance(matrix[0][0], float) or isinstance(matrix[0][0], complex):
+                        return matrix[0][0]
+                elif isinstance(matrix, list):
+                    det = 0
+                    for i in range(len(matrix)):
+                        det += ((-1)**i)*matrix[0][i]*determinant([row[:i] + row[i+1:] for row in matrix[1:]])
+                    return det
+            #scaffolding for the inverse matrix
+            cofactor_matrix = Matrix(matrix.shape, "zero")
+            #For whatever reason, I cannot clone matrix any other way than this for-loop
+            for element in Tensor.loop_through_all_coordinates(list(matrix.shape)):
+                cofactor_matrix.edit_element(element, matrix.access_element(element))
+            #priming minor
             minor = [i[:] for i in matrix.tensor]
-            #remove the elements that share either index with the current element
-            for j in range(len(minor)):
-                minor[j].pop(element[1])
-            minor.pop(element[0])
-            #turning minor into an element to put in the cofactor matrix
-            minor = ((-1)**(element[0]+element[1]))*determinant(minor)
-            cofactor_matrix.edit_element([element[1], -1*element[0]], minor)
-        #Formula for an inverse matrix
-        return Matrix((1/abs(matrix))%cofactor_matrix)
+            for element in Tensor.loop_through_all_coordinates(list(cofactor_matrix.shape)):
+                #Only way I was able to clone minor without messing up matrix
+                minor = [i[:] for i in matrix.tensor]
+                #remove the elements that share either index with the current element
+                for j in range(len(minor)):
+                    minor[j].pop(element[1])
+                minor.pop(element[0])
+                #turning minor into an element to put in the cofactor matrix
+                minor = ((-1)**(element[0]+element[1]))*determinant(minor)
+                cofactor_matrix.edit_element([element[1], -1*element[0]], minor)
+            #Formula for an inverse matrix
+            return Matrix((1/abs(matrix))%cofactor_matrix)
+        elif abs(matrix.shape[1]) > abs(matrix.shape[0]):
+            #left
+            return Matrix.inverse(Matrix.transpose(matrix) * matrix) * Matrix.transpose(matrix)
+        elif abs(matrix.shape[0]) > abs(matrix.shape[1]):
+            #right
+            return Matrix.transpose(matrix) * Matrix.inverse(matrix * Matrix.transpose(matrix))
 
     def exp(matrix):
         """
